@@ -282,8 +282,7 @@ void main(void)
   sfx_init(&sound_data);
   nmi_set_callback(famitone_update);  
   draw_background();
-  music_play(0);
-  initDigitalRain();
+  music_play(0);  
   // Enter the Matrix
   while (1) 
      {    
@@ -301,6 +300,7 @@ void main(void)
              {
              start_pressed = true;
              set_rand(randseed);
+             initDigitalRain();
              title_select = 1;
              }
           }              

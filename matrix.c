@@ -63,6 +63,7 @@ extern const void sound_data[];
 extern const void music_data[];
 
 int j;       //for loops
+int randseed;
 char oam_id; //for sprites
 bool start_pressed = false; // Only allows one input from Start Button at a time.
 bool select_pressed = false; // Only allows one input from Select Button at a time.
@@ -279,13 +280,30 @@ void main(void)
   {  
   famitone_init(&music_data);
   sfx_init(&sound_data);
-  nmi_set_callback(famitone_update);
+  nmi_set_callback(famitone_update);  
   draw_background();
   music_play(0);
   initDigitalRain();
   // Enter the Matrix
   while (1) 
      {    
-     DigitalRain(); 
+     char pad = pad_poll(0);
+     if (title_select == 1)
+        {
+        DigitalRain();
+        }
+     else
+       {
+       randseed++;
+       if (pad && PAD_START)
+          {
+          if (!start_pressed)
+             {
+             start_pressed = true;
+             set_rand(randseed);
+             title_select = 1;
+             }
+          }              
+       }
      };
 }

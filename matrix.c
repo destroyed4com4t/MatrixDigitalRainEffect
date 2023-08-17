@@ -209,8 +209,8 @@ void initDigitalRain(void)
   set_vram_update(vram_buffer);  
   
   // Clear the VRAM buffer
-  vram_adr(NTADR_A(0, 0));
-  vram_fill(NULL, 1024);  
+  //vram_adr(NTADR_A(0, 0));
+  //vram_fill(NULL, 1024);  
   
   // Enable PPU rendering (turn on screen)
   ppu_on_all();  

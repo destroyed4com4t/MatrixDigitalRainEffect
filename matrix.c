@@ -2,6 +2,8 @@
 Matrix NES Demo - MIT License
 Copyright (c) 2021-2022 Ninja Dynamics
 
+*edited 2023 Rani Timekey to add music and other effects*
+
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
 "Software"), to deal in the Software without restriction, including
@@ -30,6 +32,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //#link "vram.c"
 //#link "chr_matrix.s"
 
+//#link "famitone2.s"
+//#link "matrix_music.s"
+//#link "demosounds.s"
+
 //#define USE_OPAQUE_CHAR 
 
 #define CHR_MASK   (0x0F)
@@ -53,16 +59,44 @@ static char tileY, pixelY;
 static char density;
 static signed char dir;
 
-void putChar(char _i, char _x, char _y, char _c) {
+extern const void sound_data[];
+extern const void music_data[];
+
+
+void putChar(char _i, char _x, char _y, char _c) 
+  {
   addr = NTADR(NAMETABLE_A, _x, _y);
   vram_buffer[VRB_TILES_MSB(_i) ] = MSB(addr);
   vram_buffer[VRB_TILES_LSB(_i) ] = LSB(addr);
   vram_buffer[VRB_TILES_DATA(_i)] = _c; 
-}
+  }
+
+void initDigitalRain(void) 
+  {
+
+  
+  
+  
+  }
+
+
+
+void DigitalRain(void) 
+  {
+
+  
+  
+  
+  }
+
+
 
 // main function, run after console reset
-void main(void) {  
-
+void main(void) 
+  {  
+  famitone_init(&music_data);
+  sfx_init(&sound_data);
+  nmi_set_callback(famitone_update);
   // Characters
   pal_col( 0, 0x0F);	// black
   pal_col( 1, 0x0F);	// black
@@ -86,14 +120,16 @@ void main(void) {
   ppu_on_all();  
   
   // Define the Y starting positions for each column
-  for (i = 0; i < 32; ++i) {
+  for (i = 0; i < 32; ++i) 
+    {
     start[i] = rand8() % 30;
-  }  
+    }  
         
   // Set the code density
   density = 248;
   dir = -1; 
 
+  music_play(0);
   // Enter the Matrix
   while (1) {
     

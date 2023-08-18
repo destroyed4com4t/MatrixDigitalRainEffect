@@ -55,7 +55,7 @@ implement this into their own projects.
 //#define USE_OPAQUE_CHAR 
 
 #define CHR_MASK   (0x0F)
-#define CHR_START  (0x60)
+#define CHR_START  (0xA0)
 #define CHR_AMOUNT (0xFF - CHR_START)
 
 static word addr;
@@ -305,7 +305,20 @@ void main(void)
      char pad = pad_poll(0);
      if (title_select == 1)
         {
-        DigitalRain();
+        if (pad && PAD_START)
+           {
+           if (!start_pressed)
+              {
+              start_pressed = true;
+              draw_background();
+              title_select = 0;
+              }
+           }
+        else
+           {
+           start_pressed = false;
+           DigitalRain();
+           }
         }
      else
        {
@@ -319,7 +332,11 @@ void main(void)
              initDigitalRain();
              title_select = 1;
              }
-          }              
+          }
+       else
+             {
+             start_pressed = false;
+             }
        }
      };
 }

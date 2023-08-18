@@ -22,6 +22,22 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+*Rani Timekey Notes Aug 2023*
+
+Few things:
+*the original Ninja Dynamics version wasn't actually random because 
+it doesn't seed the random number generator. It plays out exactly
+the same every time you run it. Added a timer (which counts off 
+cycles before you hit start) which then seeds the random number 
+generator with that. I would recommend setting aside a timer byte
+in your project for this to ensure truly random results.
+*Canonically, all the characters in the MATRIX "Digital Rain"
+effect are backwards. Changed the graphics to represent that.
+*Added sound and music as well as the ability to turn the 
+"Digital Rain" state on and off to better illustrate how one could
+implement this into their own projects.
+
 */
 
 #include "array.h"

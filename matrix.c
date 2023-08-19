@@ -33,11 +33,15 @@ cycles before you hit start) which then seeds the random number
 generator with that. I would recommend setting aside a timer byte
 in your project for this to ensure truly random results.
 *Canonically, all the characters in the MATRIX "Digital Rain"
-effect are backwards. Changed the graphics to represent that.
+effect are backwards, rather than both forwards and backwards. 
+Changed the graphics to represent that. Doing so freed up a ton of space.
 *Added sound and music as well as the ability to turn the 
 "Digital Rain" state on and off to better illustrate how one could
 implement this into their own projects.
-
+*The background music is a remix of Theodore Kerr's "Battle" theme,
+under Creative Commons licensing. Sounds are mostly Shiru's 
+default Famitone effects, but there's also the Start Sound from my
+Mashou No Yakata Gabalin NES title screen simulation.
 */
 
 #include "array.h"
@@ -79,15 +83,14 @@ extern const void sound_data[];
 extern const void music_data[];
 
 int j;       //for loops
-int randseed;
+char randseed; // seed value for random number generator
+char pad; // controller input
 char oam_id; //for sprites
-bool start_pressed = false; // Only allows one input from Start Button at a time.
+bool start_pressed = false;  // Only allows one input from Start Button at a time.
 bool select_pressed = false; // Only allows one input from Select Button at a time.
-bool left_pressed = false; // Only allows one input from Select Button at a time.
-bool right_pressed = false; // Only allows one input from Select Button at a time.
-int sfx_timer; //pauses music to play sound
+bool left_pressed = false;   // Only allows one input from Select Button at a time.
+bool right_pressed = false;  // Only allows one input from Select Button at a time.
 char title_select = 0;
-char selected_song = 0;
 
 
 const char ATTRIBUTE_TABLE_1[0x40] = {
@@ -192,11 +195,12 @@ void draw_background()
   pal_all(PALETTE);
   vram_adr(0x23c0);
   vram_write(ATTRIBUTE_TABLE_1, sizeof(ATTRIBUTE_TABLE_1));
+  vram_adr(NTADR_A(0, 0));
   for (j = 0; j < sizeof(TITLE_SCREEN); j++)
     { //Draw_Title Screen
     vram_put(TITLE_SCREEN[j]);
     }
-  ppu_on_bg();
+  ppu_on_all();
   }
 
 void putChar(char _i, char _x, char _y, char _c) 
@@ -246,47 +250,68 @@ void initDigitalRain(void)
 
 void DigitalRain(void) 
   {
-     // Make the density oscilate
-     density += dir;
-     if (density == 224 || density == 248) dir = -dir;
-     // Don't ask me, it just works
-     for (x = 0; x < 32; ++x) 
-        {      
-        r = rand8();
-        if (r < 192) continue;
-        chars[x] = (r >= density);      
-        }       
+  pad = pad_poll(0);
+  if (pad && PAD_START)
+     {
+     if (!start_pressed)
+        {
+        start_pressed = true;
+        title_select = 0;            
+        }
+     }
+  else
+     {
+     start_pressed = false;
+     }
+  
+  // Make the density oscilate
+  density += dir;
+  if (density == 224 || density == 248) dir = -dir;
+  // Don't ask me, it just works
+  for (x = 0; x < 32; ++x) 
+     {      
+     r = rand8();
+     if (r < 192) continue;
+     chars[x] = (r >= density);      
+     }       
+ 
+  // Put the characters on screen    
+  for (x = 0; x < 32; ++x) 
+     {      
+     // Set the random character in the buffer
+     if (chars[x]) chars[x] = CHR_START + (rand8() % CHR_AMOUNT);
+   
+     // Calculate the Y tile and pixel positions
+     tileY = (start[x] + y) % 30; pixelY = (tileY * 8);
+     if (title_select == 1)
+        {
+     // Draw the character in white using a sprite
+     sprId = oam_spr(x * 8, pixelY - 1, chars[x], 0x03, sprId);
+      
+     #ifdef USE_OPAQUE_CHAR      
+     // Draw an opaque blank character in order to "erase" what's below
+     sprId = oam_spr(x * 8, pixelY - 1, 0x0F, 0x02, sprId); // Optional    
+     #endif
+      
+     // Draw the character in green using a background tile
+   
+        putChar(x, x, tileY, chars[x]);
         
-    // Put the characters on screen    
-    for (x = 0; x < 32; ++x) {      
-      // Set the random character in the buffer
-      if (chars[x]) chars[x] = CHR_START + (rand8() % CHR_AMOUNT);
-      
-      // Calculate the Y tile and pixel positions
-      tileY = (start[x] + y) % 30; pixelY = (tileY * 8);
-      
-      // Draw the character in white using a sprite
-      sprId = oam_spr(x * 8, pixelY - 1, chars[x], 0x03, sprId);
-      
-      #ifdef USE_OPAQUE_CHAR      
-      // Draw an opaque blank character in order to "erase" what's below
-      sprId = oam_spr(x * 8, pixelY - 1, 0x0F, 0x02, sprId); // Optional    
-      #endif
-      
-      // Draw the character in green using a background tile
-      putChar(x, x, tileY, chars[x]);            
-    }   
-    
-    // Clean-up
-    vram_buffer[LAST_INDEX_OF(vram_buffer)] = NT_UPD_EOF;
-    oam_hide_rest(sprId); sprId = 0;
-    ppu_wait_nmi();    
-    
-    // Increase Y position and loop
-    ++y;    
-  
-  
-  
+        }
+     else
+        {//erase stray VRAM noise 
+        sprId = oam_spr(x * 8, pixelY - 1, 0x00, 0x02, sprId); // Optional  
+        putChar(x, 0, 30, 0x00);
+        }
+     }   
+         
+         // Clean-up
+  oam_hide_rest(sprId); sprId = 0;
+  vram_buffer[LAST_INDEX_OF(vram_buffer)] = NT_UPD_EOF;
+  ppu_wait_nmi(); 
+  // Increase Y position and loop
+  ++y;   
+
   }
 
 
@@ -297,21 +322,48 @@ void main(void)
   famitone_init(&music_data);
   sfx_init(&sound_data);
   nmi_set_callback(famitone_update);  
-  draw_background();
-  music_play(0);  
+  music_play(0);
+  draw_background();  
   // Enter the Matrix
   while (1) 
      {    
-     char pad = pad_poll(0);
-     if (title_select == 1)
+     pad = pad_poll(0);
+     if (title_select == 0)
         {
+        randseed++;
         if (pad && PAD_START)
            {
            if (!start_pressed)
               {
               start_pressed = true;
-              draw_background();
+              music_play(1);
+              sfx_play(2,0);
+              set_rand(randseed);
+              initDigitalRain();
+              title_select = 1;
+              }
+           }
+        else
+           {
+           start_pressed = false;
+           }
+        }
+     if (title_select == 1)
+        {
+        pad = pad_poll(0);
+        if (pad && PAD_START)
+           {
+           if (!start_pressed)
+              {
+              start_pressed = true;
               title_select = 0;
+              music_play(0);
+              sfx_play(2,0);
+              for (j = 0; j < 2; ++j) 
+                 { 
+                 DigitalRain(); //run a couple times to erase VRAM noise
+                 }
+              draw_background();               
               }
            }
         else
@@ -320,23 +372,6 @@ void main(void)
            DigitalRain();
            }
         }
-     else
-       {
-       randseed++;
-       if (pad && PAD_START)
-          {
-          if (!start_pressed)
-             {
-             start_pressed = true;
-             set_rand(randseed);
-             initDigitalRain();
-             title_select = 1;
-             }
-          }
-       else
-             {
-             start_pressed = false;
-             }
-       }
+   
      };
 }

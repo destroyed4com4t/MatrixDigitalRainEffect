@@ -39,6 +39,8 @@ Changed the graphics to represent that. Doing so freed up a ton of space.
 "Digital Rain" state on and off to better illustrate how one could
 implement this into their own projects. Also included code to
 speed up or slow down the rain with the left and right buttons.
+That part is not some of my better coding work, just wanted to
+throw in one more bell and whistle before I made this public.
 *The background music is a remix of Theodore Kerr's "Battle" theme,
 under Creative Commons licensing. Sounds are Shiru's default 
 Famitone sound effects.

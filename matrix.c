@@ -39,9 +39,8 @@ Changed the graphics to represent that. Doing so freed up a ton of space.
 "Digital Rain" state on and off to better illustrate how one could
 implement this into their own projects.
 *The background music is a remix of Theodore Kerr's "Battle" theme,
-under Creative Commons licensing. Sounds are mostly Shiru's 
-default Famitone effects, but there's also the Start Sound from my
-Mashou No Yakata Gabalin NES title screen simulation.
+under Creative Commons licensing. Sounds are Shiru's default 
+Famitone sound effects.
 */
 
 #include "array.h"
@@ -79,20 +78,22 @@ static char tileY, pixelY;
 static char density;
 static signed char dir;
 
+// Additional variables added by Rani Timekey
 extern const void sound_data[];
 extern const void music_data[];
-
-int j;       //for loops
+int j;         //for loops
 char randseed; // seed value for random number generator
-char pad; // controller input
-char oam_id; //for sprites
+char pad;      // controller input
 bool start_pressed = false;  // Only allows one input from Start Button at a time.
 bool select_pressed = false; // Only allows one input from Select Button at a time.
 bool left_pressed = false;   // Only allows one input from Select Button at a time.
 bool right_pressed = false;  // Only allows one input from Select Button at a time.
-char title_select = 0;
+char title_select = 0; // 0 = Title Screen, 1 = Digital Rain
 
 
+
+// Yeah this is an empty Attribute Table, but including it anyway.
+// Will make it easier for you to add your own custom screen.
 const char ATTRIBUTE_TABLE_1[0x40] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // rows 0-3
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // rows 4-7
@@ -102,15 +103,7 @@ const char ATTRIBUTE_TABLE_1[0x40] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // rows 20-23
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // rows 24-27
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // rows 28-29
-                                     };
-
-
-const char TITLE_POINTER[][1] = 
-    {
-    {0x00}, {0x28}
-    }; // Number String For Inventory
-
-
+                                   };
 const char PALETTE[32] = {
     0x0F, // screen color
           0x0B, 0x1A, 0x3C, // background palette 0
@@ -188,7 +181,6 @@ const char TITLE_SCREEN[960] =
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
    }; //Title Screen Tiles
 
-
 void draw_background()
   {
   ppu_off();
@@ -213,27 +205,9 @@ void putChar(char _i, char _x, char _y, char _c)
 
 void initDigitalRain(void) 
   {
-    // Characters
-  //pal_col( 0, 0x0F);	// black
-  //pal_col( 1, 0x0F);	// black
-  //pal_col( 2, 0x2A);	// green
-  //pal_col( 3, 0x30);	// white  
-  
-  // Cursor
-  //pal_col(28, 0x0F);	// black
-  //pal_col(29, 0x0F);	// black
-  //pal_col(30, 0x30);	// white
-  //pal_col(31, 0x30);	// white
-  
+
   // Set the VRAM buffer
   set_vram_update(vram_buffer);  
-  
-  // Clear the VRAM buffer
-  //vram_adr(NTADR_A(0, 0));
-  //vram_fill(NULL, 1024);  
-  
-  // Enable PPU rendering (turn on screen)
-  ppu_on_all();  
   
   // Define the Y starting positions for each column
   for (i = 0; i < 32; ++i) 
@@ -299,8 +273,8 @@ void DigitalRain(void)
         
         }
      else
-        {//erase stray VRAM noise 
-        sprId = oam_spr(x * 8, pixelY - 1, 0x00, 0x02, sprId); // Optional  
+        {//erase stray VRAM noise by nulling tiles and sprites out
+        sprId = oam_spr(x * 8, pixelY - 1, 0x00, 0x02, sprId); //Makes sprites transparent
         putChar(x, 0, 30, 0x00);
         }
      }   
@@ -340,7 +314,7 @@ void main(void)
               sfx_play(2,0);
               set_rand(randseed);
               initDigitalRain();
-              title_select = 1;
+              title_select = 1; //Set to Digital Rain loop
               }
            }
         else
@@ -356,12 +330,12 @@ void main(void)
            if (!start_pressed)
               {
               start_pressed = true;
-              title_select = 0;
+              title_select = 0; // Set to Title Screen loop
               music_play(0);
               sfx_play(2,0);
               for (j = 0; j < 2; ++j) 
                  { 
-                 DigitalRain(); //run a couple times to erase VRAM noise
+                 DigitalRain(); //Run loop a couple times with null values to clear VRAM noise
                  }
               draw_background();               
               }

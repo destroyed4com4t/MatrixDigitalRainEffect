@@ -37,7 +37,8 @@ effect are backwards, rather than both forwards and backwards.
 Changed the graphics to represent that. Doing so freed up a ton of space.
 *Added sound and music as well as the ability to turn the 
 "Digital Rain" state on and off to better illustrate how one could
-implement this into their own projects.
+implement this into their own projects. Also included code to
+speed up or slow down the rain with the left and right buttons.
 *The background music is a remix of Theodore Kerr's "Battle" theme,
 under Creative Commons licensing. Sounds are Shiru's default 
 Famitone sound effects.
@@ -81,15 +82,19 @@ static signed char dir;
 // Additional variables added by Rani Timekey
 extern const void sound_data[];
 extern const void music_data[];
-int j;         //for loops
-char randseed; // seed value for random number generator
-char pad;      // controller input
+int j;          //for loops
+char randseed;  // seed value for random number generator
+char rainspeed = 32; // speed control for digital rain
+char pad;       // controller input
 bool start_pressed = false;  // Only allows one input from Start Button at a time.
-bool select_pressed = false; // Only allows one input from Select Button at a time.
 bool left_pressed = false;   // Only allows one input from Select Button at a time.
 bool right_pressed = false;  // Only allows one input from Select Button at a time.
 char title_select = 0; // 0 = Title Screen, 1 = Digital Rain
-
+char speed_select = 9; // moves between speed values
+char speed_values[10] = 
+     {
+     1,2,4,6,8,10,12,16,20,32
+     }; // value string for digital rain slowdown
 
 
 // Yeah this is an empty Attribute Table, but including it anyway.
@@ -224,26 +229,12 @@ void initDigitalRain(void)
 
 void DigitalRain(void) 
   {
-  pad = pad_poll(0);
-  if (pad && PAD_START)
-     {
-     if (!start_pressed)
-        {
-        start_pressed = true;
-        title_select = 0;            
-        }
-     }
-  else
-     {
-     start_pressed = false;
-     }
-  
   // Make the density oscilate
   density += dir;
   if (density == 224 || density == 248) dir = -dir;
   // Don't ask me, it just works
   for (x = 0; x < 32; ++x) 
-     {      
+     { 
      r = rand8();
      if (r < 192) continue;
      chars[x] = (r >= density);      
@@ -251,26 +242,23 @@ void DigitalRain(void)
  
   // Put the characters on screen    
   for (x = 0; x < 32; ++x) 
-     {      
-     // Set the random character in the buffer
-     if (chars[x]) chars[x] = CHR_START + (rand8() % CHR_AMOUNT);
-   
-     // Calculate the Y tile and pixel positions
-     tileY = (start[x] + y) % 30; pixelY = (tileY * 8);
+     {           
      if (title_select == 1)
         {
-     // Draw the character in white using a sprite
-     sprId = oam_spr(x * 8, pixelY - 1, chars[x], 0x03, sprId);
-      
-     #ifdef USE_OPAQUE_CHAR      
-     // Draw an opaque blank character in order to "erase" what's below
-     sprId = oam_spr(x * 8, pixelY - 1, 0x0F, 0x02, sprId); // Optional    
-     #endif
-      
-     // Draw the character in green using a background tile
+        // Set the random character in the buffer
+        if (chars[x]) chars[x] = CHR_START + (rand8() % CHR_AMOUNT);   
+        // Calculate the Y tile and pixel positions
+        tileY = (start[x] + y) % 30; pixelY = (tileY * 8);          
+        // Draw the character in white using a sprite
+        sprId = oam_spr(x * 8, pixelY - 1, chars[x], 0x03, sprId);
    
+        #ifdef USE_OPAQUE_CHAR      
+        // Draw an opaque blank character in order to "erase" what's below
+        sprId = oam_spr(x * 8, pixelY - 1, 0x0F, 0x02, sprId); // Optional    
+        #endif
+      
+        // Draw the character in green using a background tile
         putChar(x, x, tileY, chars[x]);
-        
         }
      else
         {//erase stray VRAM noise by nulling tiles and sprites out
@@ -278,17 +266,13 @@ void DigitalRain(void)
         putChar(x, 0, 30, 0x00);
         }
      }   
-         
-         // Clean-up
+  // Clean-up
   oam_hide_rest(sprId); sprId = 0;
   vram_buffer[LAST_INDEX_OF(vram_buffer)] = NT_UPD_EOF;
   ppu_wait_nmi(); 
   // Increase Y position and loop
-  ++y;   
-
+  ++y;
   }
-
-
 
 // main function, run after console reset
 void main(void) 
@@ -305,14 +289,14 @@ void main(void)
      if (title_select == 0)
         {
         randseed++;
-        if (pad && PAD_START)
+        if (pad & PAD_START)
            {
            if (!start_pressed)
               {
               start_pressed = true;
               music_play(1);
               sfx_play(2,0);
-              set_rand(randseed);
+              set_rand(randseed); // Seed random number generator
               initDigitalRain();
               title_select = 1; //Set to Digital Rain loop
               }
@@ -324,8 +308,41 @@ void main(void)
         }
      if (title_select == 1)
         {
-        pad = pad_poll(0);
-        if (pad && PAD_START)
+        randseed++; // Used as an animation timer here
+        if (pad & PAD_LEFT)
+           {
+           if (!left_pressed)
+              {
+              left_pressed = true;
+              if (speed_select > 0)
+                 {
+                 sfx_play(2,0);
+                 speed_select--;                 
+                 }
+              }
+           }
+        else
+          {
+          left_pressed = false;
+          }
+        if (pad & PAD_RIGHT)
+           {
+           if (!right_pressed)
+              {
+              right_pressed = true;
+              if (speed_select < 9)
+                 {
+                 sfx_play(2,0);
+                 speed_select++;
+                 }
+              }
+           }
+        else
+          {
+          right_pressed = false;
+          }
+        rainspeed = speed_values[speed_select];
+        if (pad & PAD_START)
            {
            if (!start_pressed)
               {
@@ -343,7 +360,17 @@ void main(void)
         else
            {
            start_pressed = false;
-           DigitalRain();
+           if (rainspeed >= 32)
+              {          
+              DigitalRain(); // Not my best work here, but this gets rid of the hiccup at full speed
+              }
+           else
+              {//compares the timers to slow down the digital rain
+              if ((randseed + 1) / rainspeed == 1)
+                 {          
+                 DigitalRain();
+                 }
+              }
            }
         }
    
